@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <declare-styleable name="ScrollController_Section">
+        <attr name="hook" format="float" />
+    </declare-styleable>
+
+    <declare-styleable name="ScrollController_SectionsContainer_LayoutParams">
+        <attr name="scene" format="string"/>
+    </declare-styleable>
+
+    <declare-styleable name="ScrollController_Section_LayoutParams">
+        <attr name="pin" format="boolean"/>
+    </declare-styleable>
+</resources>
