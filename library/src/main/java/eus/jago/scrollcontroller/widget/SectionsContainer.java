@@ -72,18 +72,12 @@ public class SectionsContainer extends LinearLayout implements ScrollController.
             View childAt = getChildAt(i);
             if (childAt instanceof Section) {
                 Section section = (Section) childAt;
-                int hookedScroll = (int) (verticalScroll + height * section.getHook());
-                float childFactor = (hookedScroll - section.getTop()) / (float) section.getHeight();
+                float childFactor = getSectionFactor(verticalScroll, height, section);
 
                 Scene scene = ((LayoutParams) section.getLayoutParams()).getScene();
                 if (scene != null) {
-                    if (childFactor < 0) {
-                        scene.onUpdate(0, this, section);
-                    } else if (childFactor > 1) {
-                        scene.onUpdate(1, this, section);
-                    } else {
-                        scene.onUpdate(childFactor, this, section);
-                    }
+                    childFactor = getNormalizedSectionFactor(childFactor);
+                    scene.onUpdate(childFactor, section);
                 }
             }
         }
@@ -94,13 +88,25 @@ public class SectionsContainer extends LinearLayout implements ScrollController.
         for (int i = 0; i < getChildCount(); i++) {
             View childAt = getChildAt(i);
             if (childAt instanceof Section) {
-                Scene scene = ((LayoutParams) childAt.getLayoutParams()).getScene();
+                Section section = (Section) childAt;
+                float childFactor = getSectionFactor(verticalScroll, height, section);
 
+                Scene scene = ((LayoutParams) section.getLayoutParams()).getScene();
                 if (scene != null) {
-                    scene.load((Section) childAt);
+                    childFactor = getNormalizedSectionFactor(childFactor);
+                    scene.load(section, childFactor);
                 }
             }
         }
+    }
+
+    private float getNormalizedSectionFactor(float childFactor) {
+        return Math.max(0, Math.min(1, childFactor));
+    }
+
+    private float getSectionFactor(int verticalScroll, int height, Section section) {
+        int hookedScroll = (int) (verticalScroll + height * section.getHook());
+        return (hookedScroll - section.getTop()) / (float) section.getHeight();
     }
 
     @Override
@@ -162,6 +168,7 @@ public class SectionsContainer extends LinearLayout implements ScrollController.
         }
     }
 
+    @SuppressWarnings("unchecked")
     private static Scene parseScene(Context context, AttributeSet attrs, String name) {
         if (TextUtils.isEmpty(name)) {
             return null;
