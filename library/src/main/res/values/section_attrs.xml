@@ -2,9 +2,6 @@
 <resources>
     <declare-styleable name="ScrollController_Section">
         <attr name="hook" format="float" />
-    </declare-styleable>
-
-    <declare-styleable name="ScrollController_SectionsContainer_LayoutParams">
         <attr name="scene" format="string"/>
     </declare-styleable>
 

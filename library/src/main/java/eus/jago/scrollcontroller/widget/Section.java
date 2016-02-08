@@ -2,18 +2,25 @@ package eus.jago.scrollcontroller.widget;
 
 import android.content.Context;
 import android.content.res.TypedArray;
+import android.support.annotation.Nullable;
+import android.text.TextUtils;
 import android.util.AttributeSet;
 import android.view.ViewGroup;
 import android.widget.RelativeLayout;
 
+import java.lang.reflect.Constructor;
 import java.security.InvalidParameterException;
+import java.util.HashMap;
+import java.util.Map;
 
 import eus.jago.scrollcontroller.R;
+import eus.jago.scrollcontroller.scenes.Scene;
 
 /**
  * A Section is a simple RelativeLayout that supports Scene animations
  */
 public class Section extends RelativeLayout {
+
 
     public static float TOP = 0f;
     public static float MIDDLE = .5f;
@@ -30,6 +37,14 @@ public class Section extends RelativeLayout {
      */
     private float hook = MIDDLE;
 
+    /**
+     * The scene of this section
+     */
+    private Scene scene;
+    private boolean mSceneLoaded = false;
+
+    private String DEFAULT_SCENE = Scene.class.getCanonicalName();
+    private String sceneClassName;
 
     public Section(Context context) {
         super(context);
@@ -46,7 +61,7 @@ public class Section extends RelativeLayout {
         init(context, attrs);
     }
 
-    private void init(Context context, AttributeSet attrs) {
+    private void init(final Context context, final AttributeSet attrs) {
         TypedArray a = context.getTheme().obtainStyledAttributes(
                 attrs,
                 R.styleable.ScrollController_Section,
@@ -54,6 +69,8 @@ public class Section extends RelativeLayout {
 
         try {
             hook = a.getFloat(R.styleable.ScrollController_Section_hook, hook);
+            sceneClassName = a.getString(R.styleable.ScrollController_Section_scene);
+            if (sceneClassName == null) sceneClassName = DEFAULT_SCENE;
         } finally {
             a.recycle();
         }
@@ -88,10 +105,18 @@ public class Section extends RelativeLayout {
         return new LayoutParams(super.generateDefaultLayoutParams());
     }
 
+    @Nullable
+    public Scene getScene() {
+        return scene;
+    }
+
+    public void setScene(@Nullable Scene scene) {
+        this.scene = scene;
+    }
+
     public static class LayoutParams extends RelativeLayout.LayoutParams {
 
         private boolean pin = false;
-        public boolean mSceneResolved = false;
 
         public LayoutParams(Context c, AttributeSet attrs) {
             super(c, attrs);
@@ -120,5 +145,74 @@ public class Section extends RelativeLayout {
             pin = pinned;
         }
     }
+
+
+    static final Class<?>[] CONSTRUCTOR_PARAMS = new Class<?>[] {
+            Context.class,
+            Section.class
+    };
+
+    static final ThreadLocal<Map<String, Constructor<Scene>>> sConstructors = new ThreadLocal<>();
+
+    private static final String WIDGET_PACKAGE_NAME;
+
+    static {
+        final Package pkg = ScrollController.class.getPackage();
+        WIDGET_PACKAGE_NAME = pkg != null ? pkg.getName() : null;
+    }
+
+
+    /**
+     * Instantiates the Scene
+     * @return the Scene of this section
+     */
+    public Scene parseScene() {
+        if (!mSceneLoaded) {
+            mSceneLoaded = true;
+            setScene(parseScene(getContext(), sceneClassName, Section.this));
+        }
+        return getScene();
+    }
+
+
+    @SuppressWarnings("unchecked")
+    private static Scene parseScene(Context context, String name, Section section) {
+        if (TextUtils.isEmpty(name)) {
+            return null;
+        }
+
+        final String fullName;
+        if (name.startsWith(".")) {
+            // Relative to the app package. Prepend the app package name.
+            fullName = context.getPackageName() + name;
+        } else if (name.indexOf('.') >= 0) {
+            // Fully qualified package name.
+            fullName = name;
+        } else {
+            // Assume stock behavior in this package (if we have one)
+            fullName = !TextUtils.isEmpty(WIDGET_PACKAGE_NAME)
+                    ? (WIDGET_PACKAGE_NAME + '.' + name)
+                    : name;
+        }
+
+        try {
+            Map<String, Constructor<Scene>> constructors = sConstructors.get();
+            if (constructors == null) {
+                constructors = new HashMap<>();
+                sConstructors.set(constructors);
+            }
+            Constructor<Scene> c = constructors.get(fullName);
+            if (c == null) {
+                final Class<Scene> clazz = (Class<Scene>) Class.forName(fullName, true, context.getClassLoader());
+                c = clazz.getConstructor(CONSTRUCTOR_PARAMS);
+                c.setAccessible(true);
+                constructors.put(fullName, c);
+            }
+            return c.newInstance(context, section);
+        } catch (Exception e) {
+            throw new RuntimeException("Could not inflate Scene subclass " + fullName, e);
+        }
+    }
+
 
 }
