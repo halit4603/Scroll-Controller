@@ -5,6 +5,13 @@ Similar to how [ScrollMagic](http://janpaepke.github.io/ScrollMagic/) works on w
 
 ## Usage
 ```gradle
+
+//Add jitpack repository
+repositories {
+    maven { url "https://jitpack.io" }
+}
+
+//Add the dependency
 dependencies {
     compile 'com.github.jagoba-gascon:Scroll-Controller:-SNAPSHOT'
 }
